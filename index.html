@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Shift Ledger</title>
+<title>Clocked</title>
 <meta name="theme-color" content="#EBEFF2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0C151B" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Shifts">
+<meta name="apple-mobile-web-app-title" content="Clocked">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-180.png?v=3">
-<link rel="icon" type="image/png" href="icon-192.png?v=3">
+<link rel="apple-touch-icon" href="icon-180.png?v=1">
+<link rel="icon" type="image/png" href="icon-192.png?v=1">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 :root{color-scheme:light}
@@ -261,13 +261,13 @@ textarea{width:100%;min-width:0;padding:10px 12px;font:13px/1.4 var(--f-mono);co
 
 <main class="wrap">
   <header class="top">
-    <p class="brand">Shift Ledger</p>
+    <p class="brand">Clocked</p>
     <button type="button" class="rate-chip" id="rateBtn" aria-expanded="false" aria-controls="rateWrap">$25/hr</button>
   </header>
 
   <section id="welcome" class="card welcome" hidden>
     <form id="welcomeForm" novalidate>
-      <h2>Welcome to Shift Ledger</h2>
+      <h2>Welcome to Clocked</h2>
       <p class="hint">Track your shifts, hours and weekly pay. Add your name and rate to get started. Everything stays on your phone.</p>
       <label class="f" for="wName">Your name
         <input id="wName" type="text" maxlength="40" autocomplete="given-name" placeholder="e.g. Sam">
@@ -458,7 +458,7 @@ textarea{width:100%;min-width:0;padding:10px 12px;font:13px/1.4 var(--f-mono);co
 (function(){
 'use strict';
 
-const LS='shifts-friends-v1', LS_LAST='shifts-friends-last';
+const LS='clocked-v1', LS_LAST='clocked-last';
 const AUD=new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'});
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const $=id=>document.getElementById(id);
@@ -787,7 +787,7 @@ function startLocal(){
   try{
     const raw=localStorage.getItem(LS);
     if(raw){const d=cleanAll(JSON.parse(raw));if(d){shifts=d.shifts;rate=d.rate;}}
-    localStorage.setItem('shifts-friends-probe','1');localStorage.removeItem('shifts-friends-probe');
+    localStorage.setItem('clocked-probe','1');localStorage.removeItem('clocked-probe');
   }catch(e){ok=false;}
   store={
     async add(o){commit(shifts.concat([Object.assign({id:newId()},o)]),rate);},
@@ -806,7 +806,7 @@ function startLocal(){
 
 /* ---------- backup and restore ---------- */
 let restoreArmed=false,restoreT=0;
-function backupText(){return JSON.stringify({app:'shift-ledger',version:1,rate:rate,shifts:shifts});}
+function backupText(){return JSON.stringify({app:'clocked',version:1,rate:rate,shifts:shifts});}
 $('bkToggle').addEventListener('click',()=>{
   const b=$('bkBody'),open=b.hidden;
   b.hidden=!open;$('bkToggle').setAttribute('aria-expanded',String(open));
@@ -844,13 +844,13 @@ $('bkRestore').addEventListener('click',async()=>{
 
 /* ---------- views ---------- */
 let view='shifts';
-try{if(localStorage.getItem('shifts-friends-view')==='stats') view='stats';}catch(e){}
+try{if(localStorage.getItem('clocked-view')==='stats') view='stats';}catch(e){}
 function setView(v){
   view=v;
   $('viewShifts').hidden=v!=='shifts';$('viewStats').hidden=v!=='stats';
   $('tabShifts').setAttribute('aria-selected',String(v==='shifts'));
   $('tabStats').setAttribute('aria-selected',String(v==='stats'));
-  try{localStorage.setItem('shifts-friends-view',v);}catch(e){}
+  try{localStorage.setItem('clocked-view',v);}catch(e){}
   if(v==='stats'){closeForm();renderStats();}
 }
 $('tabShifts').addEventListener('click',()=>setView('shifts'));
@@ -1012,7 +1012,7 @@ let rsT=0;
 window.addEventListener('resize',()=>{cancelAnimationFrame(rsT);rsT=requestAnimationFrame(()=>{if(view==='stats') renderStats();});});
 
 /* ---------- report ---------- */
-const LS_RP='shifts-friends-report';
+const LS_RP='clocked-report';
 let rp={title:'My wage',pay:false},rpList=[],rpLabel='',rpDirty=false,rpReturn=null;
 try{const o=JSON.parse(localStorage.getItem(LS_RP)||'null');if(o&&typeof o.title==='string') rp={title:o.title,pay:!!o.pay};}catch(e){}
 const saveRp=()=>{try{localStorage.setItem(LS_RP,JSON.stringify(rp));}catch(e){}};
@@ -1074,7 +1074,7 @@ $('rpShare').addEventListener('click',()=>{
 });
 
 /* ---------- profile + first run ---------- */
-const LS_PROFILE='shifts-friends-profile';
+const LS_PROFILE='clocked-profile';
 let profile=null;
 try{profile=JSON.parse(localStorage.getItem(LS_PROFILE)||'null');}catch(e){}
 const defaultTitle=n=>n?n+'’s wage':'My wage';

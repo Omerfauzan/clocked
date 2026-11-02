@@ -1,7 +1,7 @@
 {
-  "name": "Shift Ledger",
-  "short_name": "Shifts",
-  "description": "Track your shifts, hours and weekly pay.",
+  "name": "Clocked",
+  "short_name": "Clocked",
+  "description": "Log your shifts, see your hours and know what you'll be paid.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -9,7 +9,17 @@
   "background_color": "#EBEFF2",
   "theme_color": "#0B3944",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }
