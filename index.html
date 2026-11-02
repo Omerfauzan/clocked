@@ -244,6 +244,12 @@ input[type=time],input[type=date],input[type=number]{font-family:var(--f-mono);f
 }
 @keyframes sheetUp{from{transform:translateY(40px)}to{transform:none}}
 
+body.onboarding .wrap > :not(.top):not(#welcome){display:none!important}
+body.onboarding #rateBtn{visibility:hidden}
+.welcome{padding:22px 18px}
+.welcome form{display:grid;gap:14px}
+.welcome h2{margin:0;font:700 25px/1.15 var(--f-display);letter-spacing:-.02em;text-wrap:balance}
+.welcome .hint{font-size:14px}
 .backup{padding:14px 16px}
 .backup .linkbtn{font-size:14px}
 .backup-body{display:grid;gap:12px;margin-top:12px}
@@ -259,13 +265,30 @@ textarea{width:100%;min-width:0;padding:10px 12px;font:13px/1.4 var(--f-mono);co
     <button type="button" class="rate-chip" id="rateBtn" aria-expanded="false" aria-controls="rateWrap">$25/hr</button>
   </header>
 
+  <section id="welcome" class="card welcome" hidden>
+    <form id="welcomeForm" novalidate>
+      <h2>Welcome to Shift Ledger</h2>
+      <p class="hint">Track your shifts, hours and weekly pay. Add your name and rate to get started. Everything stays on your phone.</p>
+      <label class="f" for="wName">Your name
+        <input id="wName" type="text" maxlength="40" autocomplete="given-name" placeholder="e.g. Sam">
+      </label>
+      <label class="f" for="wRate">Hourly rate (AUD)
+        <input id="wRate" type="number" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 28.50">
+      </label>
+      <button type="submit" class="primary">Get started</button>
+    </form>
+  </section>
+
   <section id="rateWrap" class="card ratebox" hidden>
     <form id="rateForm" novalidate>
+      <label class="f" for="nameIn">Your name (used in reports)
+        <input id="nameIn" type="text" maxlength="40" autocomplete="given-name">
+      </label>
       <div class="inline">
         <label class="f" for="rateIn">Hourly rate (AUD)
           <input id="rateIn" type="number" inputmode="decimal" step="0.01" min="0">
         </label>
-        <button type="submit" class="primary">Save rate</button>
+        <button type="submit" class="primary">Save</button>
       </div>
       <p class="hint">New shifts use this rate. Shifts you already logged keep the rate they were saved with.</p>
     </form>
@@ -435,7 +458,7 @@ textarea{width:100%;min-width:0;padding:10px 12px;font:13px/1.4 var(--f-mono);co
 (function(){
 'use strict';
 
-const LS='shift-ledger-v1', LS_LAST='shift-ledger-last';
+const LS='shifts-friends-v1', LS_LAST='shifts-friends-last';
 const AUD=new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'});
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const $=id=>document.getElementById(id);
@@ -709,14 +732,14 @@ $('todayBtn').addEventListener('click',()=>{weekStart=thisMonday;closeForm();ren
 $('rateBtn').addEventListener('click',()=>{
   const w=$('rateWrap'),open=w.hidden;
   w.hidden=!open;$('rateBtn').setAttribute('aria-expanded',String(open));
-  if(open){$('rateIn').value=rate;$('rateIn').focus();}
+  if(open){$('rateIn').value=rate;$('nameIn').value=(profile&&profile.name)||'';$('rateIn').focus();}
 });
 $('rateForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const r=Number($('rateIn').value);
   if(!Number.isFinite(r)||r<=0||r>1000){toast('Enter a rate between $0.01 and $1000.');return;}
   if(!store){toast('Still connecting. Try again in a moment.');return;}
-  try{await store.setRate(Math.round(r*100)/100);$('rateWrap').hidden=true;$('rateBtn').setAttribute('aria-expanded','false');toast('Rate saved for new shifts');render();}
+  try{await store.setRate(Math.round(r*100)/100);saveName($('nameIn').value);$('rateWrap').hidden=true;$('rateBtn').setAttribute('aria-expanded','false');toast('Saved');render();}
   catch(err){toast('Couldn’t save the rate. Try again.');}
 });
 
@@ -764,7 +787,7 @@ function startLocal(){
   try{
     const raw=localStorage.getItem(LS);
     if(raw){const d=cleanAll(JSON.parse(raw));if(d){shifts=d.shifts;rate=d.rate;}}
-    localStorage.setItem('shift-ledger-probe','1');localStorage.removeItem('shift-ledger-probe');
+    localStorage.setItem('shifts-friends-probe','1');localStorage.removeItem('shifts-friends-probe');
   }catch(e){ok=false;}
   store={
     async add(o){commit(shifts.concat([Object.assign({id:newId()},o)]),rate);},
@@ -777,7 +800,8 @@ function startLocal(){
   if(!ok) showNote('This browser is blocking storage, so shifts may not be kept. Open the app from your home screen or turn off private browsing.');
   else if(window.navigator.standalone===false) showNote('To install: tap the Share button, then Add to Home Screen.');
   try{if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});}catch(e){}
-  maybeAutoOpen();render();
+  if(!profile) showWelcome(); else maybeAutoOpen();
+  render();
 }
 
 /* ---------- backup and restore ---------- */
@@ -820,13 +844,13 @@ $('bkRestore').addEventListener('click',async()=>{
 
 /* ---------- views ---------- */
 let view='shifts';
-try{if(localStorage.getItem('shift-ledger-view')==='stats') view='stats';}catch(e){}
+try{if(localStorage.getItem('shifts-friends-view')==='stats') view='stats';}catch(e){}
 function setView(v){
   view=v;
   $('viewShifts').hidden=v!=='shifts';$('viewStats').hidden=v!=='stats';
   $('tabShifts').setAttribute('aria-selected',String(v==='shifts'));
   $('tabStats').setAttribute('aria-selected',String(v==='stats'));
-  try{localStorage.setItem('shift-ledger-view',v);}catch(e){}
+  try{localStorage.setItem('shifts-friends-view',v);}catch(e){}
   if(v==='stats'){closeForm();renderStats();}
 }
 $('tabShifts').addEventListener('click',()=>setView('shifts'));
@@ -988,8 +1012,8 @@ let rsT=0;
 window.addEventListener('resize',()=>{cancelAnimationFrame(rsT);rsT=requestAnimationFrame(()=>{if(view==='stats') renderStats();});});
 
 /* ---------- report ---------- */
-const LS_RP='shift-ledger-report';
-let rp={title:'Omer’s wage',pay:false},rpList=[],rpLabel='',rpDirty=false,rpReturn=null;
+const LS_RP='shifts-friends-report';
+let rp={title:'My wage',pay:false},rpList=[],rpLabel='',rpDirty=false,rpReturn=null;
 try{const o=JSON.parse(localStorage.getItem(LS_RP)||'null');if(o&&typeof o.title==='string') rp={title:o.title,pay:!!o.pay};}catch(e){}
 const saveRp=()=>{try{localStorage.setItem(LS_RP,JSON.stringify(rp));}catch(e){}};
 function t12(t){const p=t.split(':').map(Number);return (p[0]%12||12)+(p[1]?':'+pad(p[1]):'')+(p[0]>=12?'pm':'am');}
@@ -1047,6 +1071,30 @@ $('rpCopy').addEventListener('click',()=>{
 });
 $('rpShare').addEventListener('click',()=>{
   try{navigator.share({text:$('rpText').value}).catch(()=>{});}catch(e){}
+});
+
+/* ---------- profile + first run ---------- */
+const LS_PROFILE='shifts-friends-profile';
+let profile=null;
+try{profile=JSON.parse(localStorage.getItem(LS_PROFILE)||'null');}catch(e){}
+const defaultTitle=n=>n?n+'’s wage':'My wage';
+try{if(!localStorage.getItem(LS_RP)) rp.title=defaultTitle(profile&&profile.name);}catch(e){}
+function saveName(n){
+  n=String(n||'').trim().slice(0,40);
+  const oldDef=defaultTitle(profile&&profile.name);
+  profile={name:n};
+  try{localStorage.setItem(LS_PROFILE,JSON.stringify(profile));}catch(e){}
+  if(rp.title===oldDef||!rp.title.trim()){rp.title=defaultTitle(n);saveRp();}
+}
+function showWelcome(){document.body.classList.add('onboarding');$('welcome').hidden=false;}
+$('welcomeForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const r=Number($('wRate').value);
+  if(!$('wRate').value||!Number.isFinite(r)||r<=0||r>1000){toast('Enter your hourly rate, like 28.50.');$('wRate').focus();return;}
+  try{await store.setRate(Math.round(r*100)/100);}catch(err){toast('Couldn’t save. Storage may be blocked.');return;}
+  saveName($('wName').value);
+  document.body.classList.remove('onboarding');$('welcome').hidden=true;
+  render();maybeAutoOpen();
 });
 
 /* ---------- housekeeping ---------- */
