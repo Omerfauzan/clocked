@@ -1,5 +1,5 @@
 // Bump CACHE when index.html changes so phones pick up the new version.
-const CACHE = 'shift-ledger-v3';
+const CACHE = 'shift-ledger-v4';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
