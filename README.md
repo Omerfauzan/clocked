@@ -114,7 +114,7 @@ Then open http://localhost:8000.
 
 ## Updating
 
-If you change `index.html`, bump the `CACHE` name in `sw.js` (for example `clocked-v1` to `clocked-v2`). Otherwise phones keep showing the cached old version. After pushing, close and reopen the app twice to pick up the update.
+If you change `index.html`, bump the `CACHE` name in `sw.js` (for example `clocked-v2` to `clocked-v3`). Otherwise phones keep showing the cached old version. After pushing, close and reopen the app twice to pick up the update.
 
 ## Ideas for later
 
