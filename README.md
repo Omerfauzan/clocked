@@ -115,7 +115,7 @@ Then open http://localhost:8000.
 
 ## Updating
 
-If you change `index.html`, bump the `CACHE` name in `sw.js` (for example `clocked-v3` to `clocked-v4`). Otherwise phones keep showing the cached old version. After pushing, close and reopen the app twice to pick up the update.
+The app always loads the newest version when you open it with internet, and falls back to the saved copy when you're offline. After pushing, give GitHub Pages a few minutes, then reopen the app. When you change `index.html`, still bump the `CACHE` name in `sw.js` (for example `clocked-v4` to `clocked-v5`) so old saved files get cleared out.
 
 ## Ideas for later
 

@@ -1,5 +1,5 @@
 // Bump CACHE when index.html changes so phones pick up the new version.
-const CACHE = 'clocked-v3';
+const CACHE = 'clocked-v4';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -16,21 +16,34 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Serve from cache first so it opens instantly and works offline, then refresh the cache in the background.
+const save = (req, res) => {
+  if (res && (res.ok || res.type === 'opaque')) {
+    const copy = res.clone();
+    caches.open(CACHE).then((c) => c.put(req, copy));
+  }
+  return res;
+};
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  const isPage = req.mode === 'navigate' || (url.origin === location.origin && url.pathname.endsWith('/index.html'));
+
+  if (isPage) {
+    // The app itself: get the newest version when online, fall back to the saved copy offline.
+    e.respondWith(
+      fetch(req, { cache: 'no-cache' })
+        .then((res) => save(req, res))
+        .catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || caches.match('./')))
+    );
+    return;
+  }
+
+  // Everything else (icons, fonts): saved copy first, refreshed in the background.
   e.respondWith(
     caches.match(req, { ignoreSearch: true }).then((hit) => {
-      const net = fetch(req)
-        .then((res) => {
-          if (res && (res.ok || res.type === 'opaque')) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => hit);
+      const net = fetch(req).then((res) => save(req, res)).catch(() => hit);
       return hit || net;
     })
   );

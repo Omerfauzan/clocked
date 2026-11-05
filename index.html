@@ -1129,7 +1129,12 @@ document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&ymd(new Date())!==todayStr) location.reload();
 });
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost')){
-  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // check for a newer version whenever the app comes back to the front
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden) reg.update().catch(()=>{});});
+    }).catch(()=>{});
+  });
 }
 
 render();
