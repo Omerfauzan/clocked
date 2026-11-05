@@ -143,6 +143,13 @@ input[type=time],input[type=date],input[type=number]{font-family:var(--f-mono);f
 .shift.anim{transition:transform .22s cubic-bezier(.2,.8,.2,1)}
 .shift:hover{background:var(--bg)}
 .shift .chev{align-self:center;margin-left:-4px;font-size:20px;line-height:1;color:var(--ink-2);opacity:.6}
+.clash{display:grid;gap:10px;padding:12px 14px;border-radius:12px;background:var(--other-soft);color:var(--ink);font-size:13.5px}
+.clash p{margin:0}
+.clash b{color:var(--other)}
+.clash-b{display:flex;gap:8px;flex-wrap:wrap}
+.clash-b .primary{width:auto;flex:1 1 170px;padding:11px 14px;font-size:15px}
+.clash-b .ghost{padding:11px 14px}
+#addSameDay{justify-self:center}
 .listhint{margin:6px 2px 0;font-size:12.5px;color:var(--ink-2)}
 .toast{display:flex;align-items:center;gap:14px}
 .toast button{border:0;background:none;color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;padding:2px 0}
@@ -375,11 +382,19 @@ textarea{width:100%;min-width:0;padding:10px 12px;font:13px/1.4 var(--f-mono);co
         <input id="fNote" name="note" type="text" maxlength="120" placeholder="e.g. closing shift">
       </label>
       <div id="preview" class="preview" role="status"><span id="pv1"></span><strong id="pv2"></strong></div>
+      <div class="clash" id="clash" role="alert" hidden>
+        <p><b>Overlapping shift.</b> <span id="clashText"></span></p>
+        <div class="clash-b">
+          <button type="button" class="primary" id="clashReplace">Replace that shift</button>
+          <button type="button" class="ghost" id="clashBoth">Keep both</button>
+        </div>
+      </div>
       <div class="actions2">
         <button type="submit" class="primary" id="saveBtn">Save shift</button>
         <button type="button" class="ghost" id="cancelBtn">Cancel</button>
       </div>
       <button type="button" class="danger" id="delBtn" hidden>Delete this shift</button>
+      <button type="button" class="linkbtn" id="addSameDay" hidden>Add another shift on this day</button>
     </form>
   </section>
 
@@ -587,8 +602,8 @@ function renderStrip(){
     const lab=m?(+(m/60).toFixed(2))+'h':'–';
     wrap.append(el('button',{
       type:'button',class:'day'+(key===todayStr?' today':''),
-      'aria-label':(m?fmtDur(m)+' on ':'Add a shift on ')+longDate(d),
-      onclick:()=>openForm({date:key})
+      'aria-label':(m?'Edit your '+fmtDur(m)+' shift on ':'Add a shift on ')+longDate(d),
+      onclick:()=>{const on=list.filter(s=>s.date===key).sort(cmp);if(on.length) openForm(null,on[0]); else openForm({date:key});}
     },
       el('span',{class:'dn',text:DAYS[i]}),
       el('span',{class:'dd',text:String(d.getDate())}),
@@ -736,13 +751,13 @@ function openForm(pre,edit){
   $('fNote').value=edit?(edit.note||''):'';
   $('formTitle').textContent=edit?'Edit shift':'Add a shift';
   $('saveBtn').textContent=edit?'Update shift':'Save shift';
-  $('delBtn').hidden=!edit;
+  $('delBtn').hidden=!edit;$('addSameDay').hidden=!edit;
   $('formWrap').hidden=false;
-  updatePreview();
+  updatePreview();renderClash();
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   $('formWrap').scrollIntoView({block:'nearest',behavior:reduce?'auto':'smooth'});
 }
-function closeForm(){$('formWrap').hidden=true;editingId=null;disarm();}
+function closeForm(){$('formWrap').hidden=true;$('clash').hidden=true;editingId=null;disarm();}
 function disarm(){delArmed=null;clearTimeout(delT);$('delBtn').textContent='Delete this shift';}
 
 form.addEventListener('input',updatePreview);
@@ -756,21 +771,50 @@ $('addBtn').addEventListener('click',()=>{
   if(!$('formWrap').hidden&&!editingId){closeForm();return;}
   openForm({});
 });
-form.addEventListener('submit',async e=>{
-  e.preventDefault();
-  const v=readForm();
-  if(validate(v)){updatePreview();return;}
+function spanOf(x,off){const a=toMin(x.start)+off;return [a,a+spanMin(x.start,x.end)];}
+function clashesFor(v){
+  if(!v.date||!v.start||!v.end||v.start===v.end) return [];
+  const [a0,a1]=spanOf(v,0),out=[];
+  for(const [d,off] of [[v.date,0],[ymd(addDays(parse(v.date),-1)),-1440],[ymd(addDays(parse(v.date),1)),1440]])
+    for(const x of shifts) if(x.date===d&&x.id!==editingId){const [b0,b1]=spanOf(x,off);if(a0<b1&&b0<a1) out.push(x);}
+  return out;
+}
+const locName=x=>x.loc==='other'?'other location':'main shop';
+function renderClash(){
+  const c=clashesFor(readForm()),box=$('clash');
+  box.hidden=!c.length;
+  if(c.length){
+    $('clashText').textContent='This overlaps '+c.map(x=>'your '+fmtTime(x.start)+' – '+fmtTime(x.end)+' shift on '+longDate(parse(x.date))+' ('+locName(x)+')').join(' and ')+'. Replace it if this is the right one, or keep both if you really worked both.';
+    $('clashReplace').textContent=c.length===1?'Replace that shift':'Replace those shifts';
+  }
+  return c;
+}
+form.addEventListener('input',renderClash);
+form.addEventListener('change',renderClash);
+async function saveShift(v,replace){
   if(!store){toast('Still connecting. Try again in a moment.');return;}
   const id=editingId,ex=editingShift();
   const obj={date:v.date,start:v.start,end:v.end,breakMin:v.breakMin,loc:v.loc,note:v.note,rate:ex?rateOf(ex):rate};
   try{
+    for(const x of replace) await store.del(x.id);
     if(id) await store.put(id,obj); else await store.add(obj);
     last={start:v.start,end:v.end,breakMin:v.breakMin,loc:v.loc};
     try{localStorage.setItem(LS_LAST,JSON.stringify(last));}catch(err){}
     weekStart=mondayOf(parse(v.date));
-    closeForm();toast(id?'Shift updated':'Shift saved');render();
+    closeForm();render();
+    toast((id?'Shift updated':'Shift saved')+(replace.length?', replaced the overlapping one':''));
   }catch(err){toast('Couldn’t save that shift. Try again.');}
+}
+form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const v=readForm();
+  if(validate(v)){updatePreview();return;}
+  if(renderClash().length){$('clash').scrollIntoView({block:'nearest'});$('clashReplace').focus({preventScroll:true});toast('This overlaps another shift. Pick replace or keep both.');return;}
+  await saveShift(v,[]);
 });
+$('clashReplace').addEventListener('click',async()=>{const v=readForm();if(validate(v)){updatePreview();return;}await saveShift(v,clashesFor(v));});
+$('clashBoth').addEventListener('click',async()=>{const v=readForm();if(validate(v)){updatePreview();return;}await saveShift(v,[]);});
+$('addSameDay').addEventListener('click',()=>{const d=$('fDate').value;openForm({date:d});});
 $('delBtn').addEventListener('click',async()=>{
   if(!editingId) return;
   if(delArmed!==editingId){

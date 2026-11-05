@@ -32,6 +32,8 @@ I work casual shifts while studying, and I was keeping track of my hours in note
 **Shifts**
 - Add a shift with date, start, finish and unpaid break. Overnight shifts work too.
 - Tag a shift as your main workplace or another location.
+- Won't let you double up by accident: if a shift overlaps one you already have (same day, or an overnight shift running into the next morning), it shows the existing shift and asks whether to **replace it** or **keep both**. Non-overlapping shifts on the same day save normally.
+- Tapping a day in the week strip opens that day's shift to edit, with an "Add another shift on this day" link if you need a second one.
 - Tap any shift to edit it, or swipe it left for quick **Edit** and **Delete** buttons. Deleting shows an **Undo** for a few seconds, so a cancelled shift is one swipe to remove.
 - See the week at a glance: estimated pay, hours, shifts and days worked, plus a Mon to Sun strip showing hours per day.
 - Shows how much more or less you made than the week before.
@@ -116,7 +118,7 @@ Then open http://localhost:8000.
 
 ## Updating
 
-The app always loads the newest version when you open it with internet, and falls back to the saved copy when you're offline. After pushing, give GitHub Pages a few minutes, then reopen the app. When you change `index.html`, still bump the `CACHE` name in `sw.js` (for example `clocked-v5` to `clocked-v6`) so old saved files get cleared out.
+The app always loads the newest version when you open it with internet, and falls back to the saved copy when you're offline. After pushing, give GitHub Pages a few minutes, then reopen the app. When you change `index.html`, still bump the `CACHE` name in `sw.js` (for example `clocked-v6` to `clocked-v7`) so old saved files get cleared out.
 
 ## Ideas for later
 
