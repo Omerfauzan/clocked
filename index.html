@@ -438,6 +438,12 @@ textarea{width:100%;min-width:0;padding:10px 12px;font:13px/1.4 var(--f-mono);co
     <label class="f" for="rpTitleIn">Title
       <input id="rpTitleIn" type="text" maxlength="60" autocomplete="off">
     </label>
+    <div class="optrow" id="rpLocRow" hidden>
+      <span>Location</span>
+      <button type="button" class="chip" data-loc="main" aria-pressed="true">Main shop</button>
+      <button type="button" class="chip" data-loc="other" aria-pressed="false">Other location</button>
+      <button type="button" class="chip" data-loc="all" aria-pressed="false">Both</button>
+    </div>
     <div class="optrow">
       <span>Also show</span>
       <button type="button" class="chip" id="rpPay" aria-pressed="false">Pay per shift</button>
@@ -861,20 +867,24 @@ const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
 const MON_LONG=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD_LONG=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const curYear=new Date().getFullYear();
-let range='week',stWeek=thisMonday,stYear=curYear,selKey=null;
+let range='week',stMonth=new Date(thisMonday.getFullYear(),new Date().getMonth(),1),stYear=curYear,selKey=null;
+const curMonthStart=new Date(new Date().getFullYear(),new Date().getMonth(),1);
 const shortMoney=c=>'$'+(c%100?(c/100).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}):(c/100).toLocaleString('en-AU'));
 
 function periods(){
   const items=[];let title='',rel='';
   if(range==='week'){
-    for(let i=7;i>=0;i--){
-      const a=addDays(stWeek,-7*i);
-      items.push({key:ymd(a),start:a,end:addDays(a,7),
-        l1:String(a.getDate()),l2:(i===7||a.getDate()<=7)?MON[a.getMonth()]:'',
-        long:shortDate(a)+' – '+shortDate(addDays(a,6)),unit:'week'});
+    // every week (Mon-Sun) that starts in the chosen month
+    let d=new Date(stMonth);while(d.getDay()!==1) d=addDays(d,1);
+    while(d.getMonth()===stMonth.getMonth()){
+      const e=addDays(d,6);
+      items.push({key:ymd(d),start:d,end:addDays(d,7),
+        l1:d.getDate()+'–'+e.getDate(),l2:e.getMonth()!==d.getMonth()?MON[e.getMonth()]:'',
+        long:shortDate(d)+' – '+shortDate(e),unit:'week'});
+      d=addDays(d,7);
     }
-    title=shortDate(items[0].start)+' – '+shortDate(addDays(stWeek,6));
-    rel=stWeek.getTime()===thisMonday.getTime()?'Last 8 weeks':'8 weeks';
+    title=MON_LONG[stMonth.getMonth()]+' '+stMonth.getFullYear();
+    rel=stMonth.getTime()===curMonthStart.getTime()?'This month, week by week':'Week by week';
   }else if(range==='month'){
     for(let m=0;m<12;m++){
       const a=new Date(stYear,m,1);
@@ -939,7 +949,7 @@ function renderStats(){
   for(const b of document.querySelectorAll('[data-range]')) b.setAttribute('aria-selected',String(b.dataset.range===range));
   const prev=$('stPrev'),next=$('stNext');
   prev.classList.toggle('ghosted',range==='year');next.classList.toggle('ghosted',range==='year');
-  next.disabled=range==='week'?stWeek.getTime()>=thisMonday.getTime():range==='month'?stYear>=curYear:true;
+  next.disabled=range==='week'?stMonth.getTime()>=curMonthStart.getTime():range==='month'?stYear>=curYear:true;
 
   if(!items.some(i=>i.key===selKey)){
     const withData=items.filter(i=>i.count);
@@ -947,7 +957,7 @@ function renderStats(){
   }
   let cents=0,min=0,count=0;const days=new Set();
   for(const it of items){cents+=it.cents;min+=it.min;count+=it.count;for(const s of it.list) days.add(s.date);}
-  $('stLabel').textContent='Earned · '+(range==='week'?'these 8 weeks':range==='month'?P.title:'all time');
+  $('stLabel').textContent='Earned · '+(range==='all'?'all time':range==='week'?'these '+items.length+' weeks':P.title);
   $('stBig').textContent=shortMoney(cents);
   $('stSub').textContent=fmtDur(min)+' · '+count+(count===1?' shift':' shifts');
   drawChart(items);
@@ -993,11 +1003,11 @@ for(const b of document.querySelectorAll('[data-range]')) b.addEventListener('cl
   range=b.dataset.range;selKey=null;renderStats();
 });
 $('stPrev').addEventListener('click',()=>{
-  if(range==='week') stWeek=addDays(stWeek,-56); else if(range==='month') stYear--;
+  if(range==='week') stMonth=new Date(stMonth.getFullYear(),stMonth.getMonth()-1,1); else if(range==='month') stYear--;
   selKey=null;renderStats();
 });
 $('stNext').addEventListener('click',()=>{
-  if(range==='week'){stWeek=addDays(stWeek,56);if(stWeek>thisMonday) stWeek=thisMonday;}
+  if(range==='week'){if(stMonth<curMonthStart) stMonth=new Date(stMonth.getFullYear(),stMonth.getMonth()+1,1);}
   else if(range==='month'&&stYear<curYear) stYear++;
   selKey=null;renderStats();
 });
@@ -1014,13 +1024,17 @@ window.addEventListener('resize',()=>{cancelAnimationFrame(rsT);rsT=requestAnima
 /* ---------- report ---------- */
 const LS_RP='clocked-report';
 let rp={title:'My wage',pay:false},rpList=[],rpLabel='',rpDirty=false,rpReturn=null;
-try{const o=JSON.parse(localStorage.getItem(LS_RP)||'null');if(o&&typeof o.title==='string') rp={title:o.title,pay:!!o.pay};}catch(e){}
+try{const o=JSON.parse(localStorage.getItem(LS_RP)||'null');if(o&&typeof o.title==='string') rp={title:o.title,pay:!!o.pay,titleOther:typeof o.titleOther==='string'?o.titleOther:''};}catch(e){}
 const saveRp=()=>{try{localStorage.setItem(LS_RP,JSON.stringify(rp));}catch(e){}};
 function t12(t){const p=t.split(':').map(Number);return (p[0]%12||12)+(p[1]?':'+pad(p[1]):'')+(p[0]>=12?'pm':'am');}
 function hrsTxt(m){const h=Math.round(m/60*100)/100;return h+(h===1?' hour':' hours');}
 const plainMoney=c=>'$'+(c%100?(c/100).toFixed(2):String(c/100));
+let rpLoc='main';
+const isOther=s=>s.loc==='other';
+function rpTitle(){return rpLoc==='other'?(rp.titleOther||((rp.title.trim()||'My wage')+' - other location')):(rp.title.trim()||'My wage');}
+function rpFiltered(){return rpList.filter(s=>rpLoc==='all'||(rpLoc==='other'?isOther(s):!isOther(s)));}
 function buildReport(list){
-  const L=[rp.title.trim()||'My wage',''];
+  const L=[rpTitle(),''];
   let min=0,c=0;
   for(const s of list.slice().sort(cmp)){
     const d=parse(s.date),m=workedMin(s),cc=centsOf(m,rateOf(s));
@@ -1030,12 +1044,19 @@ function buildReport(list){
   L.push('','Total-'+hrsTxt(min)+'- '+plainMoney(c));
   return L.join('\n');
 }
-function fillReport(){$('rpText').value=buildReport(rpList);rpDirty=false;}
+function fillReport(){
+  const f=rpFiltered();
+  $('rpText').value=buildReport(f);rpDirty=false;
+  $('rpWhen').textContent=rpLabel+' · '+f.length+(f.length===1?' shift':' shifts')+(rpLoc==='other'?' at the other location':rpLoc==='main'&&!$('rpLocRow').hidden?' at the main shop':'');
+  $('rpTitleIn').value=rpTitle();
+  for(const b of document.querySelectorAll('[data-loc]')) b.setAttribute('aria-pressed',String(b.dataset.loc===rpLoc));
+}
 function openReport(list,label){
   if(!list.length){toast('No shifts to report for '+label+'.');return;}
   rpList=list;rpLabel=label;rpReturn=document.activeElement;
-  $('rpWhen').textContent=label+' · '+list.length+(list.length===1?' shift':' shifts');
-  $('rpTitleIn').value=rp.title;
+  const hasOther=list.some(isOther),hasMain=list.some(s=>!isOther(s));
+  $('rpLocRow').hidden=!(hasOther&&hasMain);
+  rpLoc=hasMain?'main':'other';
   $('rpPay').setAttribute('aria-pressed',String(rp.pay));
   fillReport();
   $('rpShare').hidden=!(navigator.share);
@@ -1053,14 +1074,20 @@ $('rpWrap').addEventListener('click',e=>{if(e.target===$('rpWrap')) closeReport(
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeReport();});
 $('rpText').addEventListener('input',()=>{rpDirty=true;});
 $('rpTitleIn').addEventListener('input',()=>{
-  rp.title=$('rpTitleIn').value;saveRp();
-  const lines=$('rpText').value.split('\n');lines[0]=rp.title.trim()||'My wage';$('rpText').value=lines.join('\n');
+  if(rpLoc==='other') rp.titleOther=$('rpTitleIn').value; else rp.title=$('rpTitleIn').value;
+  saveRp();
+  const lines=$('rpText').value.split('\n');lines[0]=rpTitle();$('rpText').value=lines.join('\n');
 });
 $('rpPay').addEventListener('click',()=>{
   rp.pay=!rp.pay;saveRp();$('rpPay').setAttribute('aria-pressed',String(rp.pay));
   const was=rpDirty;fillReport();if(was) toast('Report rebuilt from your shifts');
 });
 $('rpReset').addEventListener('click',()=>{fillReport();toast('Report reset');});
+for(const b of document.querySelectorAll('[data-loc]')) b.addEventListener('click',()=>{
+  if(rpLoc===b.dataset.loc) return;
+  const was=rpDirty;rpLoc=b.dataset.loc;fillReport();
+  if(was) toast('Report rebuilt for '+b.textContent.toLowerCase());
+});
 $('rpCopy').addEventListener('click',()=>{
   const ta=$('rpText'),text=ta.value;
   const fallback=()=>{ta.focus();ta.select();toast('Select all and copy the text.');};

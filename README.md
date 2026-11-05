@@ -37,7 +37,7 @@ I work casual shifts while studying, and I was keeping track of my hours in note
 - Change your hourly rate any time. Shifts you already logged keep the rate they were saved with, so old weeks don't change.
 
 **Stats**
-- Weekly, monthly and yearly earnings as a bar chart. Tap any bar to see that period.
+- Earnings as a bar chart. **Weekly** shows the weeks of one month (use the arrows to move between months), **Monthly** shows Jan to Dec, and **Yearly** shows every year. Tap any bar to see that period.
 - Hours worked, average per week or month, your best week or month, and days worked.
 - Hours by day of the week, so you can see which days you usually work.
 
@@ -57,6 +57,7 @@ I work casual shifts while studying, and I was keeping track of my hours in note
 - Edit anything before sending. You can also add the pay for each shift.
 - Copy it, or use Share to send it straight to another app.
 - Works for a month or a whole year too, from the Stats tab.
+- If a period has shifts at both your main workplace and another location, you get a separate report for each. Switch between **Main shop**, **Other location** and **Both**, and each location keeps its own title.
 
 **Everything else**
 - Installs on your home screen and opens full screen like an app.
@@ -114,7 +115,7 @@ Then open http://localhost:8000.
 
 ## Updating
 
-If you change `index.html`, bump the `CACHE` name in `sw.js` (for example `clocked-v2` to `clocked-v3`). Otherwise phones keep showing the cached old version. After pushing, close and reopen the app twice to pick up the update.
+If you change `index.html`, bump the `CACHE` name in `sw.js` (for example `clocked-v3` to `clocked-v4`). Otherwise phones keep showing the cached old version. After pushing, close and reopen the app twice to pick up the update.
 
 ## Ideas for later
 
