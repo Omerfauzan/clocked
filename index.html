@@ -27,7 +27,7 @@ img{max-width:100%}
   --accent:#0C6B7B; --accent-ink:#FFFFFF; --accent-soft:#D6ECF0; --bar:#A9D3DB; --scrim:rgba(6,20,26,.42);
   --hero-bg:#0B3944; --hero-ink:#F2FBFC; --hero-dim:#9FCBD3; --hero-line:rgba(242,251,252,.18);
   --other:#8F5200; --other-soft:#F7E8D0;
-  --danger:#B3261E; --danger-soft:#FADEDB;
+  --danger:#B3261E; --danger-soft:#FADEDB; --danger-ink:#FFFFFF;
   --f-display:'Bricolage Grotesque','Avenir Next','Segoe UI',system-ui,sans-serif;
   --f-body:'Instrument Sans','Segoe UI',system-ui,-apple-system,sans-serif;
   --f-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
@@ -39,7 +39,7 @@ img{max-width:100%}
     --accent:#5CC4D4; --accent-ink:#04202A; --accent-soft:#16363F; --bar:#2F5C67; --scrim:rgba(0,0,0,.6);
     --hero-bg:#17424D; --hero-ink:#EFFAFB; --hero-dim:#A5D1D8; --hero-line:rgba(239,250,251,.18);
     --other:#F0B565; --other-soft:#3A2B12;
-    --danger:#FF9A92; --danger-soft:#3E1B19;
+    --danger:#FF9A92; --danger-soft:#3E1B19; --danger-ink:#3A0D0A;
     color-scheme:dark;
   }
 }
@@ -49,7 +49,7 @@ img{max-width:100%}
   --accent:#5CC4D4; --accent-ink:#04202A; --accent-soft:#16363F; --bar:#2F5C67; --scrim:rgba(0,0,0,.6);
   --hero-bg:#17424D; --hero-ink:#EFFAFB; --hero-dim:#A5D1D8; --hero-line:rgba(239,250,251,.18);
   --other:#F0B565; --other-soft:#3A2B12;
-  --danger:#FF9A92; --danger-soft:#3E1B19;
+  --danger:#FF9A92; --danger-soft:#3E1B19; --danger-ink:#3A0D0A;
   color-scheme:dark;
 }
 
@@ -133,9 +133,19 @@ input[type=time],input[type=date],input[type=number]{font-family:var(--f-mono);f
 .sec-title h2{margin:0;font:700 17px var(--f-display);letter-spacing:-.01em}
 .sec-title span{font-size:12.5px;color:var(--ink-2)}
 .list{overflow:hidden}
-.shift{display:flex;justify-content:space-between;gap:14px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:13px 14px}
-.shift:last-child{border-bottom:0}
+.srow{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.sacts{position:absolute;top:0;right:0;bottom:0;display:flex}
+.sa{width:78px;border:0;font-weight:600;font-size:14px}
+.sa.edit{background:var(--accent);color:var(--accent-ink)}
+.sa.del{background:var(--danger);color:var(--danger-ink)}
+.shift{position:relative;z-index:1;display:flex;justify-content:space-between;gap:14px;width:100%;text-align:left;background:var(--surface);border:0;padding:13px 14px;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.shift.anim{transition:transform .22s cubic-bezier(.2,.8,.2,1)}
 .shift:hover{background:var(--bg)}
+.shift .chev{align-self:center;margin-left:-4px;font-size:20px;line-height:1;color:var(--ink-2);opacity:.6}
+.listhint{margin:6px 2px 0;font-size:12.5px;color:var(--ink-2)}
+.toast{display:flex;align-items:center;gap:14px}
+.toast button{border:0;background:none;color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;padding:2px 0}
 .shift .l{min-width:0}
 .shift .r{text-align:right;white-space:nowrap}
 .shift .when{margin:0;font-weight:600}
@@ -522,9 +532,10 @@ function totals(list){
   return {min,cents,main,other,days:days.size,rates:Array.from(rates),count:list.length};
 }
 
-function toast(msg){
-  const t=$('toast');t.textContent=msg;t.hidden=false;
-  clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true;},2800);
+function toast(msg,action){
+  const t=$('toast');t.replaceChildren(el('span',{text:msg}));t.hidden=false;
+  if(action) t.append(el('button',{type:'button',onclick:()=>{t.hidden=true;clearTimeout(toastT);action.fn();}},action.label));
+  clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true;},action?6000:2800);
 }
 
 /* ---------- render ---------- */
@@ -588,6 +599,7 @@ function renderStrip(){
 }
 
 function renderList(){
+  openRow=null;
   const list=weekList(),box=$('list');
   box.replaceChildren();
   $('listCount').textContent=list.length?list.length+(list.length===1?' shift':' shifts'):'';
@@ -605,9 +617,13 @@ function renderList(){
       s.breakMin?el('span',{text:s.breakMin+'m break'}):null,
       s.loc==='other'?el('span',{class:'tag',text:'Other location'}):null,
       s.note?el('span',{text:s.note}):null);
-    card.append(el('button',{
-      type:'button',class:'shift','aria-label':'Edit shift on '+longDate(d),
-      onclick:()=>openForm(null,s)
+    const row=el('div',{class:'srow'},
+      el('div',{class:'sacts'},
+        el('button',{type:'button',class:'sa edit',tabindex:'-1','aria-hidden':'true',onclick:()=>{closeSwipe();openForm(null,s);}},'Edit'),
+        el('button',{type:'button',class:'sa del',tabindex:'-1','aria-hidden':'true',onclick:()=>{closeSwipe(true);quickDelete(s);}},'Delete')));
+    const btn=el('button',{
+      type:'button',class:'shift','aria-label':'Edit or delete shift on '+longDate(d),
+      onclick:e=>{if(btn.dataset.dragged){delete btn.dataset.dragged;return;}if(openRow===btn){closeSwipe();return;}closeSwipe();openForm(null,s);}
     },
       el('div',{class:'l'},
         el('p',{class:'when',text:longDate(d)}),
@@ -615,9 +631,12 @@ function renderList(){
         meta),
       el('div',{class:'r'},
         el('p',{class:'hrs',text:fmtDur(m)}),
-        el('p',{class:'pay',text:fmtMoney(centsOf(m,r))}))));
+        el('p',{class:'pay',text:fmtMoney(centsOf(m,r))})),
+      el('span',{class:'chev','aria-hidden':'true',text:'›'}));
+    addSwipe(btn);
+    row.append(btn);card.append(row);
   }
-  box.append(card);
+  box.append(card,el('p',{class:'listhint',text:'Tap a shift to edit it, or swipe it left to edit or delete.'}));
 }
 
 function renderWeeks(){
@@ -642,6 +661,39 @@ function renderWeeks(){
       el('div',{},el('div',{class:'wr',text:shortDate(a)+' – '+shortDate(addDays(a,6))}),el('div',{class:'wh',text:fmtDur(t.min)+' · '+t.count+(t.count===1?' shift':' shifts')})),
       el('div',{class:'wp',text:fmtMoney(t.cents)})));
   }
+}
+
+/* ---------- swipe to edit / delete ---------- */
+const OPEN_X=-156;
+let openRow=null;
+function setX(b,x,anim){b.classList.toggle('anim',!!anim);b.style.transform=x?'translateX('+x+'px)':'';}
+function closeSwipe(now){if(openRow){setX(openRow,0,!now);openRow=null;}}
+function addSwipe(b){
+  let sx=0,sy=0,base=0,drag=false,id=null;
+  b.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0) return;sx=e.clientX;sy=e.clientY;base=openRow===b?OPEN_X:0;drag=false;id=e.pointerId;});
+  b.addEventListener('pointermove',e=>{
+    if(id!==e.pointerId) return;
+    const dx=e.clientX-sx,dy=e.clientY-sy;
+    if(!drag){if(Math.abs(dx)<8||Math.abs(dx)<Math.abs(dy)*1.2) return;drag=true;if(openRow&&openRow!==b) closeSwipe();try{b.setPointerCapture(id);}catch(err){}}
+    setX(b,Math.max(OPEN_X-30,Math.min(0,base+dx)),false);
+  });
+  const end=e=>{
+    if(id!==e.pointerId) return;id=null;
+    if(!drag) return;
+    b.dataset.dragged='1';setTimeout(()=>{delete b.dataset.dragged;},350);
+    const m=new DOMMatrixReadOnly(getComputedStyle(b).transform).m41;
+    if(m<OPEN_X/2){setX(b,OPEN_X,true);openRow=b;} else {setX(b,0,true);if(openRow===b) openRow=null;}
+  };
+  b.addEventListener('pointerup',end);b.addEventListener('pointercancel',end);
+}
+document.addEventListener('pointerdown',e=>{if(openRow&&!e.target.closest('.srow')) closeSwipe();});
+async function quickDelete(sh){
+  if(!store) return;
+  const copy=Object.assign({},sh);delete copy.id;
+  try{
+    await store.del(sh.id);render();
+    toast('Shift on '+longDate(parse(sh.date))+' deleted',{label:'Undo',fn:async()=>{try{await store.add(copy);render();toast('Shift restored');}catch(err){toast('Couldn’t restore it.');}}});
+  }catch(err){toast('Couldn’t delete that shift. Try again.');}
 }
 
 /* ---------- form ---------- */
@@ -727,7 +779,8 @@ $('delBtn').addEventListener('click',async()=>{
   }
   if(!store){toast('Still connecting. Try again in a moment.');return;}
   const id=editingId;
-  try{await store.del(id);closeForm();toast('Shift deleted');render();}
+  const gone=shifts.find(x=>x.id===id),copy=gone?Object.assign({},gone):null;if(copy) delete copy.id;
+  try{await store.del(id);closeForm();render();toast('Shift deleted',copy?{label:'Undo',fn:async()=>{try{await store.add(copy);render();toast('Shift restored');}catch(err){toast('Couldn\u2019t restore it.');}}}:null);}
   catch(err){toast('Couldn’t delete that shift. Try again.');}
 });
 
